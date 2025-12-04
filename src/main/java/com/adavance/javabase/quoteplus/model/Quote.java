@@ -1,5 +1,6 @@
 package com.adavance.javabase.quoteplus.model;
 
+import com.adavance.javabase.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

@@ -1,9 +1,8 @@
-package com.adavance.javabase.quoteplus.model;
+package com.adavance.javabase.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.GenericGenerator;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -44,4 +43,3 @@ public abstract class BaseEntity {
         updatedAt = Instant.now();
     }
 }
-
