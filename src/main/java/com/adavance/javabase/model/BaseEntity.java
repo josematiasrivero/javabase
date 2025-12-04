@@ -11,7 +11,7 @@ import java.util.UUID;
 @MappedSuperclass
 @Getter
 @Setter
-public abstract class BaseEntity {
+public class BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +29,8 @@ public abstract class BaseEntity {
 
     @PrePersist
     protected void onCreate() {
+        beforeOnCreate();
+
         if (uuid == null) {
             uuid = UUID.randomUUID().toString();
         }
@@ -40,8 +42,13 @@ public abstract class BaseEntity {
         }
     }
 
+    protected void beforeOnCreate() {};
+
     @PreUpdate
     protected void onUpdate() {
+        beforeOnUpdate();
         updatedAt = Instant.now();
     }
+
+    protected void beforeOnUpdate() {};
 }
