@@ -112,7 +112,30 @@ public class OpenApiConfig {
         // Dynamically generate OpenAPI paths for all discovered entities
         generateEntityPaths(openAPI);
 
+        // Register schemas for all discovered entities
+        registerEntitySchemas(openAPI);
+
         return openAPI;
+    }
+
+    /**
+     * Registers schemas for all discovered entities using ModelConverters.
+     */
+    private void registerEntitySchemas(OpenAPI openAPI) {
+        for (Class<?> entityClass : entityDiscovery.getAllEntityClasses()) {
+            String schemaName = entityClass.getSimpleName();
+            if (openAPI.getComponents().getSchemas() == null || !openAPI.getComponents().getSchemas().containsKey(schemaName)) {
+                io.swagger.v3.core.converter.ResolvedSchema resolvedSchema = io.swagger.v3.core.converter.ModelConverters.getInstance()
+                        .readAllAsResolvedSchema(entityClass);
+                if (resolvedSchema.schema != null) {
+                    openAPI.getComponents().addSchemas(schemaName, resolvedSchema.schema);
+                }
+                // Add referenced schemas as well
+                if (resolvedSchema.referencedSchemas != null) {
+                    resolvedSchema.referencedSchemas.forEach((key, schema) -> openAPI.getComponents().addSchemas(key, schema));
+                }
+            }
+        }
     }
 
     /**
