@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.bind.annotation.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -95,6 +97,7 @@ public class GenericRestController {
      * Creates a new entity from the request body.
      */
     @PostMapping("/{entityName}")
+    @Transactional
     public ResponseEntity<?> createEntity(
             @PathVariable String entityName,
             @RequestBody Map<String, Object> requestBody) {
@@ -121,7 +124,18 @@ public class GenericRestController {
             
             log.info("Successfully created entity {}: {}", entityName, entity);
             return ResponseEntity.status(HttpStatus.CREATED).body(entity);
+        } catch (PersistenceException e) {
+            // Database constraint violations - mark transaction for rollback
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("Database constraint violation creating entity {}", entityName, e);
+            // Get the root cause for a more helpful error message
+            Throwable rootCause = e.getCause();
+            String errorMessage = rootCause != null ? rootCause.getMessage() : e.getMessage();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Database constraint violation: " + errorMessage));
         } catch (Exception e) {
+            // Other exceptions - also mark for rollback to be safe
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             log.error("Error creating entity {}", entityName, e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", "Failed to create entity: " + e.getMessage()));
