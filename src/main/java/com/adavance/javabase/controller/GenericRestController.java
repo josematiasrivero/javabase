@@ -275,8 +275,11 @@ public class GenericRestController {
                 Class<?> fieldType = field.getType();
                 
                 // Check if this is a JPA relationship field
-                boolean isRelationship = field.isAnnotationPresent(ManyToOne.class) || 
-                                        field.isAnnotationPresent(OneToOne.class);
+                boolean isManyToOne = field.isAnnotationPresent(ManyToOne.class);
+                boolean isOneToOne = field.isAnnotationPresent(OneToOne.class);
+                boolean isOneToMany = field.isAnnotationPresent(OneToMany.class);
+                boolean isManyToMany = field.isAnnotationPresent(ManyToMany.class);
+                boolean isRelationship = isManyToOne || isOneToOne || isOneToMany || isManyToMany;
                 
                 Object value = null;
                 
@@ -284,7 +287,7 @@ public class GenericRestController {
                 if (isRelationship) {
                     if (data.containsKey(fieldName)) {
                         value = data.get(fieldName);
-                    } else if (data.containsKey(fieldName + "Id")) {
+                    } else if ((isManyToOne || isOneToOne) && data.containsKey(fieldName + "Id")) {
                         // Try to load entity by UUID or ID
                         Object idValue = data.get(fieldName + "Id");
                         if (idValue != null) {
@@ -313,8 +316,56 @@ public class GenericRestController {
                     continue;
                 }
                 
+                // Handle OneToMany/ManyToMany (List of entities)
+                if ((isOneToMany || isManyToMany) && value instanceof List) {
+                    java.lang.reflect.ParameterizedType stringListType = (java.lang.reflect.ParameterizedType) field.getGenericType();
+                    Class<?> relatedClass = (Class<?>) stringListType.getActualTypeArguments()[0];
+                    
+                    List<Object> relatedEntities = new java.util.ArrayList<>();
+                    List<?> listValue = (List<?>) value;
+                    
+                    for (Object item : listValue) {
+                        if (item instanceof Map) {
+                            // Create new instance or find existing
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> itemMap = (Map<String, Object>) item;
+                            
+                            Object relatedEntity;
+                            if (itemMap.containsKey("uuid")) {
+                                String uuid = (String) itemMap.get("uuid");
+                                Optional<?> existing = findEntityByUuid(relatedClass, uuid);
+                                if (existing.isPresent()) {
+                                    relatedEntity = existing.get();
+                                    // Update existing entity fields if needed? 
+                                    // For now, let's assume we just link it, or update it if it's owned.
+                                    // If it's OneToMany with Cascade.ALL, we might want to update it.
+                                    setEntityFields(relatedEntity, itemMap, relatedClass);
+                                } else {
+                                    throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName() + " with UUID " + uuid + " not found");
+                                }
+                            } else {
+                                // Create new
+                                relatedEntity = relatedClass.getDeclaredConstructor().newInstance();
+                                setEntityFields(relatedEntity, itemMap, relatedClass);
+                            }
+                            relatedEntities.add(relatedEntity);
+                        } else if (item instanceof String) {
+                            // Assume UUID
+                             Optional<?> existing = findEntityByUuid(relatedClass, (String) item);
+                             if (existing.isPresent()) {
+                                 relatedEntities.add(existing.get());
+                             } else {
+                                 throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName() + " with UUID " + item + " not found");
+                             }
+                        }
+                    }
+                    
+                    field.set(entity, relatedEntities);
+                    continue;
+                }
+
                 // Handle relationship fields that might be passed as Map with "uuid" or "id"
-                if (isRelationship && value instanceof Map) {
+                if ((isManyToOne || isOneToOne) && value instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> relationMap = (Map<String, Object>) value;
                     if (relationMap.containsKey("uuid")) {
