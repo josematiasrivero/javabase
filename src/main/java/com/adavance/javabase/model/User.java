@@ -37,14 +37,14 @@ public class User extends BaseEntity {
     @Override
     protected void beforeOnCreate() {
         if (rawPassword != null) {
-            EncryptionUtils.encrypt(rawPassword);
+            this.encryptedPassword = EncryptionUtils.encrypt(rawPassword);
         }
     }
 
     @Override
     protected void beforeOnUpdate() {
         if (rawPassword != null) {
-            EncryptionUtils.encrypt(rawPassword);
+            this.encryptedPassword = EncryptionUtils.encrypt(rawPassword);
         }
     }
 }
