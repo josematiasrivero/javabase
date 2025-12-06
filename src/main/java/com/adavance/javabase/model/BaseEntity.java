@@ -19,7 +19,7 @@ public class BaseEntity {
     private Long id;
 
     @Column(unique = true, nullable = false, updatable = false)
-    private String uuid;
+    protected String uuid;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

@@ -13,6 +13,14 @@ import java.util.List;
 @Setter
 public class Role extends BaseEntity {
 
+    protected Role() {
+    }
+
+    public Role(String uuid, List<String> permissions) {
+        this.uuid = uuid;
+        this.permissions = permissions;
+    }
+
     @Column(unique = true, nullable = false)
     private String name;
 
@@ -20,4 +28,6 @@ public class Role extends BaseEntity {
     @CollectionTable(name = "role_permissions", joinColumns = @JoinColumn(name = "role_id"))
     @Column(name = "permission")
     private List<String> permissions = new ArrayList<>();
+
+
 }

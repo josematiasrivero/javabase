@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Generic REST controller that handles all entity requests under /rest/*
@@ -45,7 +44,7 @@ public class GenericRestController {
     @GetMapping("/{entityName}")
     public ResponseEntity<?> getAllEntities(@PathVariable String entityName) {
         log.debug("GET /rest/{} - Listing all entities", entityName);
-        
+
         Optional<Class<?>> entityClassOpt = entityDiscovery.getEntityClass(entityName);
         if (entityClassOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -57,7 +56,7 @@ public class GenericRestController {
             String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
             TypedQuery<?> query = entityManager.createQuery(jpql, entityClass);
             List<?> results = query.getResultList();
-            
+
             return ResponseEntity.ok(results);
         } catch (Exception e) {
             log.error("Error fetching entities for {}", entityName, e);
@@ -73,7 +72,7 @@ public class GenericRestController {
     @GetMapping("/{entityName}/{uuid}")
     public ResponseEntity<?> getEntityByUuid(@PathVariable String entityName, @PathVariable String uuid) {
         log.debug("GET /rest/{}/{} - Getting entity by UUID", entityName, uuid);
-        
+
         Optional<Class<?>> entityClassOpt = entityDiscovery.getEntityClass(entityName);
         if (entityClassOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -83,12 +82,12 @@ public class GenericRestController {
         try {
             Class<?> entityClass = entityClassOpt.get();
             Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
-            
+
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Entity with UUID " + uuid + " not found"));
             }
-            
+
             return ResponseEntity.ok(entityOpt.get());
         } catch (Exception e) {
             log.error("Error fetching entity {} with UUID {}", entityName, uuid, e);
@@ -107,7 +106,7 @@ public class GenericRestController {
             @PathVariable String entityName,
             @RequestBody Map<String, Object> requestBody) {
         log.debug("POST /rest/{} - Creating new entity", entityName);
-        
+
         Optional<Class<?>> entityClassOpt = entityDiscovery.getEntityClass(entityName);
         if (entityClassOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -116,17 +115,17 @@ public class GenericRestController {
 
         try {
             Class<?> entityClass = entityClassOpt.get();
-            
+
             // Create new instance of the entity
             Object entity = entityClass.getDeclaredConstructor().newInstance();
-            
+
             // Set fields from request body using reflection
             setEntityFields(entity, requestBody, entityClass);
-            
+
             // Persist the entity
             entityManager.persist(entity);
             entityManager.flush();
-            
+
             log.info("Successfully created entity {}: {}", entityName, entity);
             return ResponseEntity.status(HttpStatus.CREATED).body(entity);
         } catch (PersistenceException e) {
@@ -158,7 +157,7 @@ public class GenericRestController {
             @PathVariable String uuid,
             @RequestBody Map<String, Object> requestBody) {
         log.debug("PUT /rest/{}/{} - Updating entity", entityName, uuid);
-        
+
         Optional<Class<?>> entityClassOpt = entityDiscovery.getEntityClass(entityName);
         if (entityClassOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -168,21 +167,21 @@ public class GenericRestController {
         try {
             Class<?> entityClass = entityClassOpt.get();
             Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
-            
+
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Entity with UUID " + uuid + " not found"));
             }
-            
+
             Object entity = entityOpt.get();
-            
+
             // Update fields from request body
             setEntityFields(entity, requestBody, entityClass);
-            
+
             // Merge the entity
             entityManager.merge(entity);
             entityManager.flush();
-            
+
             log.info("Successfully updated entity {}: {}", entityName, entity);
             return ResponseEntity.ok(entity);
         } catch (PersistenceException e) {
@@ -208,7 +207,7 @@ public class GenericRestController {
     @Transactional
     public ResponseEntity<?> deleteEntity(@PathVariable String entityName, @PathVariable String uuid) {
         log.debug("DELETE /rest/{}/{} - Deleting entity", entityName, uuid);
-        
+
         Optional<Class<?>> entityClassOpt = entityDiscovery.getEntityClass(entityName);
         if (entityClassOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -218,15 +217,15 @@ public class GenericRestController {
         try {
             Class<?> entityClass = entityClassOpt.get();
             Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
-            
+
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Entity with UUID " + uuid + " not found"));
             }
-            
+
             Object entity = entityOpt.get();
             entityManager.remove(entity);
-            
+
             log.info("Successfully deleted entity {}: {}", entityName, uuid);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
@@ -254,35 +253,36 @@ public class GenericRestController {
     /**
      * Sets entity fields from a Map using reflection.
      * Handles common types like String, Integer, Long, BigDecimal, Boolean, etc.
-     * Also handles JPA relationships (@ManyToOne, @OneToOne) by loading related entities.
+     * Also handles JPA relationships (@ManyToOne, @OneToOne) by loading related
+     * entities.
      */
     private void setEntityFields(Object entity, Map<String, Object> data, Class<?> entityClass) throws Exception {
         // Get all fields including inherited ones
         Class<?> currentClass = entityClass;
         while (currentClass != null && currentClass != Object.class) {
             Field[] fields = currentClass.getDeclaredFields();
-            
+
             for (Field field : fields) {
                 String fieldName = field.getName();
-                
+
                 // Skip JPA-managed fields (id, uuid, createdAt, updatedAt)
-                if (fieldName.equals("id") || fieldName.equals("uuid") || 
-                    fieldName.equals("createdAt") || fieldName.equals("updatedAt")) {
+                if (fieldName.equals("id") || fieldName.equals("uuid") ||
+                        fieldName.equals("createdAt") || fieldName.equals("updatedAt")) {
                     continue;
                 }
-                
+
                 field.setAccessible(true);
                 Class<?> fieldType = field.getType();
-                
+
                 // Check if this is a JPA relationship field
                 boolean isManyToOne = field.isAnnotationPresent(ManyToOne.class);
                 boolean isOneToOne = field.isAnnotationPresent(OneToOne.class);
                 boolean isOneToMany = field.isAnnotationPresent(OneToMany.class);
                 boolean isManyToMany = field.isAnnotationPresent(ManyToMany.class);
                 boolean isRelationship = isManyToOne || isOneToOne || isOneToMany || isManyToMany;
-                
+
                 Object value = null;
-                
+
                 // For relationships, check for fieldName or fieldNameId
                 if (isRelationship) {
                     if (data.containsKey(fieldName)) {
@@ -297,7 +297,8 @@ public class GenericRestController {
                                 if (relatedEntity.isPresent()) {
                                     value = relatedEntity.get();
                                 } else {
-                                    throw new IllegalArgumentException("Related entity " + fieldType.getSimpleName() + " with UUID " + idValue + " not found");
+                                    throw new IllegalArgumentException("Related entity " + fieldType.getSimpleName()
+                                            + " with UUID " + idValue + " not found");
                                 }
                             } else {
                                 // Fallback to ID (Long) if passed as number
@@ -311,37 +312,39 @@ public class GenericRestController {
                         value = data.get(fieldName);
                     }
                 }
-                
+
                 if (value == null) {
                     continue;
                 }
-                
+
                 // Handle OneToMany/ManyToMany (List of entities)
                 if ((isOneToMany || isManyToMany) && value instanceof List) {
-                    java.lang.reflect.ParameterizedType stringListType = (java.lang.reflect.ParameterizedType) field.getGenericType();
+                    java.lang.reflect.ParameterizedType stringListType = (java.lang.reflect.ParameterizedType) field
+                            .getGenericType();
                     Class<?> relatedClass = (Class<?>) stringListType.getActualTypeArguments()[0];
-                    
+
                     List<Object> relatedEntities = new java.util.ArrayList<>();
                     List<?> listValue = (List<?>) value;
-                    
+
                     for (Object item : listValue) {
                         if (item instanceof Map) {
                             // Create new instance or find existing
                             @SuppressWarnings("unchecked")
                             Map<String, Object> itemMap = (Map<String, Object>) item;
-                            
+
                             Object relatedEntity;
                             if (itemMap.containsKey("uuid")) {
                                 String uuid = (String) itemMap.get("uuid");
                                 Optional<?> existing = findEntityByUuid(relatedClass, uuid);
                                 if (existing.isPresent()) {
                                     relatedEntity = existing.get();
-                                    // Update existing entity fields if needed? 
+                                    // Update existing entity fields if needed?
                                     // For now, let's assume we just link it, or update it if it's owned.
                                     // If it's OneToMany with Cascade.ALL, we might want to update it.
                                     setEntityFields(relatedEntity, itemMap, relatedClass);
                                 } else {
-                                    throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName() + " with UUID " + uuid + " not found");
+                                    throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName()
+                                            + " with UUID " + uuid + " not found");
                                 }
                             } else {
                                 // Create new
@@ -351,15 +354,16 @@ public class GenericRestController {
                             relatedEntities.add(relatedEntity);
                         } else if (item instanceof String) {
                             // Assume UUID
-                             Optional<?> existing = findEntityByUuid(relatedClass, (String) item);
-                             if (existing.isPresent()) {
-                                 relatedEntities.add(existing.get());
-                             } else {
-                                 throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName() + " with UUID " + item + " not found");
-                             }
+                            Optional<?> existing = findEntityByUuid(relatedClass, (String) item);
+                            if (existing.isPresent()) {
+                                relatedEntities.add(existing.get());
+                            } else {
+                                throw new IllegalArgumentException("Related entity " + relatedClass.getSimpleName()
+                                        + " with UUID " + item + " not found");
+                            }
                         }
                     }
-                    
+
                     field.set(entity, relatedEntities);
                     continue;
                 }
@@ -374,23 +378,24 @@ public class GenericRestController {
                         if (relatedEntity.isPresent()) {
                             value = relatedEntity.get();
                         } else {
-                            throw new IllegalArgumentException("Related entity " + fieldType.getSimpleName() + " with UUID " + relatedUuid + " not found");
+                            throw new IllegalArgumentException("Related entity " + fieldType.getSimpleName()
+                                    + " with UUID " + relatedUuid + " not found");
                         }
                     } else if (relationMap.containsKey("id")) {
                         Object idValue = relationMap.get("id");
                         value = entityManager.find(fieldType, convertToLong(idValue));
                     }
                 }
-                
+
                 // Convert value to appropriate type
                 Object convertedValue = convertValue(value, fieldType);
                 field.set(entity, convertedValue);
             }
-            
+
             currentClass = currentClass.getSuperclass();
         }
     }
-    
+
     /**
      * Converts a value to Long for entity ID lookups.
      */
@@ -411,12 +416,12 @@ public class GenericRestController {
         if (value == null) {
             return null;
         }
-        
+
         // If already the correct type, return as is
         if (targetType.isInstance(value)) {
             return value;
         }
-        
+
         // Handle common type conversions
         if (targetType == String.class) {
             return value.toString();
@@ -445,9 +450,8 @@ public class GenericRestController {
                 return Instant.parse((String) value);
             }
         }
-        
+
         // For other types, try to return as is (might work for nested objects)
         return value;
     }
 }
-
