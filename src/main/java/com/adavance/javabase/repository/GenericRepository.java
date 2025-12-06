@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adavance.javabase.model.BaseEntity;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -98,5 +100,36 @@ public class GenericRepository {
     public Object findById(Class<?> entityClass, Long id) {
         return entityManager.find(entityClass, id);
     }
-}
 
+    /**
+     * Persists an entity if it doesn't already exist by UUID.
+     * If the entity has a UUID and an entity with that UUID exists, returns the existing entity.
+     * Otherwise, persists the entity and returns it.
+     *
+     * @param entity the entity to persist
+     * @return the persisted entity (either existing or newly persisted)
+     */
+    @Transactional
+    public Object saveIfNotExistsByUuid(Object entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        if (!(entity instanceof BaseEntity)) {
+            // If not a BaseEntity, just persist it
+            return save(entity);
+        }
+
+        BaseEntity baseEntity = (BaseEntity) entity;
+        if (baseEntity.getUuid() != null) {
+            // Check if entity with this UUID already exists
+            Optional<?> existing = findByUuid(entity.getClass(), baseEntity.getUuid());
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+        }
+
+        // Entity doesn't exist or has no UUID, persist it
+        return save(entity);
+    }
+}
