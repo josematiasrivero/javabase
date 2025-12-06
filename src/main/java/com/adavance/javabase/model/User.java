@@ -20,7 +20,8 @@ public class User extends BaseEntity {
     protected User() {
     }
 
-    public User(String username, String rawPassword, List<Role> roles) {
+    public User(String uuid, String username, String rawPassword, List<Role> roles) {
+        this.uuid = uuid;
         this.username = username;
         this.rawPassword = rawPassword;
         this.roles = new HashSet<>(roles);

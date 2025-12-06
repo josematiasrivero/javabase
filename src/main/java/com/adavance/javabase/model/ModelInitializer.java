@@ -1,6 +1,7 @@
 package com.adavance.javabase.model;
 
 import com.adavance.javabase.repository.GenericRepository;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -11,6 +12,7 @@ import java.util.Set;
  * Abstract base class for model initializers.
  * Provides common functionality for ensuring static fields are persisted in the database.
  */
+@Slf4j
 public abstract class ModelInitializer {
 
     protected final GenericRepository genericRepository;
@@ -34,11 +36,16 @@ public abstract class ModelInitializer {
         
         // Check if this set of field names has already been processed
         if (!processedFieldSets.add(fieldNamesKey)) {
+            log.debug("Field set {} already processed, skipping", fieldNames);
             return; // Already processed, skip
         }
 
+        log.info("Ensuring persistence for {} field(s): {}", fieldNames.size(), fieldNames);
+
         for (String fieldName : fieldNames) {
             try {
+                log.debug("Processing field: {}", fieldName);
+                
                 // Get the static field by name
                 Field field = this.getClass().getDeclaredField(fieldName);
                 field.setAccessible(true);
@@ -47,18 +54,31 @@ public abstract class ModelInitializer {
                 Object entity = field.get(null);
 
                 if (entity == null) {
+                    log.warn("Field {} is null, skipping", fieldName);
                     continue;
                 }
 
-                // Persist if not already persisted by UUID
-                Object persistedEntity = genericRepository.saveIfNotExistsByUuid(entity);
+                if (!(entity instanceof BaseEntity)) {
+                    log.warn("Field {} is not a BaseEntity, skipping", fieldName);
+                    continue;
+                }
+
+                log.debug("Persisting entity for field {}: {}", fieldName, entity.getClass().getSimpleName());
+                
+                // Ensure entity exists by UUID (return existing if found, create if not)
+                BaseEntity persistedEntity = genericRepository.ensureByUuid((BaseEntity) entity);
 
                 // Update the static field with the persisted entity
                 field.set(null, persistedEntity);
+                
+                log.info("Successfully persisted and updated field: {}", fieldName);
             } catch (NoSuchFieldException | IllegalAccessException e) {
+                log.error("Failed to ensure persistence for field: {}", fieldName, e);
                 throw new RuntimeException("Failed to ensure persistence for field: " + fieldName, e);
             }
         }
+        
+        log.info("Completed ensuring persistence for {} field(s)", fieldNames.size());
     }
 }
 

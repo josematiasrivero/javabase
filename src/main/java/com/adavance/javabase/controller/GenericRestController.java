@@ -1,5 +1,6 @@
 package com.adavance.javabase.controller;
 
+import com.adavance.javabase.model.BaseEntity;
 import com.adavance.javabase.repository.GenericRepository;
 import com.adavance.javabase.util.EntityDiscovery;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -53,8 +54,8 @@ public class GenericRestController {
         }
 
         try {
-            Class<?> entityClass = entityClassOpt.get();
-            List<?> results = genericRepository.findAll(entityClass);
+            Class<? extends BaseEntity> entityClass = asBaseEntityClass(entityClassOpt.get());
+            List<? extends BaseEntity> results = genericRepository.findAll(entityClass);
 
             return ResponseEntity.ok(results);
         } catch (Exception e) {
@@ -79,8 +80,8 @@ public class GenericRestController {
         }
 
         try {
-            Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
+            Class<? extends BaseEntity> entityClass = asBaseEntityClass(entityClassOpt.get());
+            Optional<? extends BaseEntity> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -113,10 +114,10 @@ public class GenericRestController {
         }
 
         try {
-            Class<?> entityClass = entityClassOpt.get();
+            Class<? extends BaseEntity> entityClass = asBaseEntityClass(entityClassOpt.get());
 
             // Create new instance of the entity
-            Object entity = entityClass.getDeclaredConstructor().newInstance();
+            BaseEntity entity = entityClass.getDeclaredConstructor().newInstance();
 
             // Set fields from request body using reflection
             setEntityFields(entity, requestBody, entityClass);
@@ -163,15 +164,15 @@ public class GenericRestController {
         }
 
         try {
-            Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
+            Class<? extends BaseEntity> entityClass = asBaseEntityClass(entityClassOpt.get());
+            Optional<? extends BaseEntity> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Entity with UUID " + uuid + " not found"));
             }
 
-            Object entity = entityOpt.get();
+            BaseEntity entity = entityOpt.get();
 
             // Update fields from request body
             setEntityFields(entity, requestBody, entityClass);
@@ -212,15 +213,15 @@ public class GenericRestController {
         }
 
         try {
-            Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
+            Class<? extends BaseEntity> entityClass = asBaseEntityClass(entityClassOpt.get());
+            Optional<? extends BaseEntity> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Entity with UUID " + uuid + " not found"));
             }
 
-            Object entity = entityOpt.get();
+            BaseEntity entity = entityOpt.get();
             genericRepository.delete(entity);
 
             log.info("Successfully deleted entity {}: {}", entityName, uuid);
@@ -277,7 +278,9 @@ public class GenericRestController {
                         if (idValue != null) {
                             if (idValue instanceof String) {
                                 // Assume UUID
-                                Optional<?> relatedEntity = genericRepository.findByUuid(fieldType, (String) idValue);
+                                @SuppressWarnings("unchecked")
+                                Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) fieldType;
+                                Optional<? extends BaseEntity> relatedEntity = genericRepository.findByUuid(relatedEntityClass, (String) idValue);
                                 if (relatedEntity.isPresent()) {
                                     value = relatedEntity.get();
                                 } else {
@@ -286,7 +289,9 @@ public class GenericRestController {
                                 }
                             } else {
                                 // Fallback to ID (Long) if passed as number
-                                value = genericRepository.findById(fieldType, convertToLong(idValue));
+                                @SuppressWarnings("unchecked")
+                                Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) fieldType;
+                                value = genericRepository.findById(relatedEntityClass, convertToLong(idValue));
                             }
                         }
                     }
@@ -319,7 +324,9 @@ public class GenericRestController {
                             Object relatedEntity;
                             if (itemMap.containsKey("uuid")) {
                                 String uuid = (String) itemMap.get("uuid");
-                                Optional<?> existing = genericRepository.findByUuid(relatedClass, uuid);
+                                @SuppressWarnings("unchecked")
+                                Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) relatedClass;
+                                Optional<? extends BaseEntity> existing = genericRepository.findByUuid(relatedEntityClass, uuid);
                                 if (existing.isPresent()) {
                                     relatedEntity = existing.get();
                                     // Update existing entity fields if needed?
@@ -338,7 +345,9 @@ public class GenericRestController {
                             relatedEntities.add(relatedEntity);
                         } else if (item instanceof String) {
                             // Assume UUID
-                            Optional<?> existing = genericRepository.findByUuid(relatedClass, (String) item);
+                            @SuppressWarnings("unchecked")
+                            Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) relatedClass;
+                            Optional<? extends BaseEntity> existing = genericRepository.findByUuid(relatedEntityClass, (String) item);
                             if (existing.isPresent()) {
                                 relatedEntities.add(existing.get());
                             } else {
@@ -358,7 +367,9 @@ public class GenericRestController {
                     Map<String, Object> relationMap = (Map<String, Object>) value;
                     if (relationMap.containsKey("uuid")) {
                         String relatedUuid = (String) relationMap.get("uuid");
-                        Optional<?> relatedEntity = genericRepository.findByUuid(fieldType, relatedUuid);
+                        @SuppressWarnings("unchecked")
+                        Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) fieldType;
+                        Optional<? extends BaseEntity> relatedEntity = genericRepository.findByUuid(relatedEntityClass, relatedUuid);
                         if (relatedEntity.isPresent()) {
                             value = relatedEntity.get();
                         } else {
@@ -367,7 +378,9 @@ public class GenericRestController {
                         }
                     } else if (relationMap.containsKey("id")) {
                         Object idValue = relationMap.get("id");
-                        value = genericRepository.findById(fieldType, convertToLong(idValue));
+                        @SuppressWarnings("unchecked")
+                        Class<? extends BaseEntity> relatedEntityClass = (Class<? extends BaseEntity>) fieldType;
+                        value = genericRepository.findById(relatedEntityClass, convertToLong(idValue));
                     }
                 }
 
@@ -437,5 +450,17 @@ public class GenericRestController {
 
         // For other types, try to return as is (might work for nested objects)
         return value;
+    }
+
+    /**
+     * Safely casts a Class<?> to Class<? extends BaseEntity>.
+     * This is safe because all entities discovered by EntityDiscovery should extend BaseEntity.
+     */
+    @SuppressWarnings("unchecked")
+    private Class<? extends BaseEntity> asBaseEntityClass(Class<?> clazz) {
+        if (!BaseEntity.class.isAssignableFrom(clazz)) {
+            throw new IllegalArgumentException("Class " + clazz.getName() + " does not extend BaseEntity");
+        }
+        return (Class<? extends BaseEntity>) clazz;
     }
 }

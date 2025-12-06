@@ -30,9 +30,9 @@ public class GenericRepository {
      * @param entityClass the entity class
      * @return list of all entities
      */
-    public List<?> findAll(Class<?> entityClass) {
+    public <T extends BaseEntity> List<T> findAll(Class<T> entityClass) {
         String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
-        TypedQuery<?> query = entityManager.createQuery(jpql, entityClass);
+        TypedQuery<T> query = entityManager.createQuery(jpql, entityClass);
         return query.getResultList();
     }
 
@@ -43,10 +43,10 @@ public class GenericRepository {
      * @param uuid the UUID to search for
      * @return Optional containing the entity if found, empty otherwise
      */
-    public Optional<?> findByUuid(Class<?> entityClass, String uuid) {
+    public <T extends BaseEntity> Optional<T> findByUuid(Class<T> entityClass, String uuid) {
         try {
             String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e WHERE e.uuid = :uuid";
-            TypedQuery<?> query = entityManager.createQuery(jpql, entityClass);
+            TypedQuery<T> query = entityManager.createQuery(jpql, entityClass);
             query.setParameter("uuid", uuid);
             return Optional.of(query.getSingleResult());
         } catch (NoResultException e) {
@@ -61,7 +61,7 @@ public class GenericRepository {
      * @return the persisted entity
      */
     @Transactional
-    public Object save(Object entity) {
+    public <T extends BaseEntity> T save(T entity) {
         entityManager.persist(entity);
         entityManager.flush();
         return entity;
@@ -74,8 +74,8 @@ public class GenericRepository {
      * @return the updated entity
      */
     @Transactional
-    public Object update(Object entity) {
-        Object merged = entityManager.merge(entity);
+    public <T extends BaseEntity> T update(T entity) {
+        T merged = entityManager.merge(entity);
         entityManager.flush();
         return merged;
     }
@@ -86,7 +86,7 @@ public class GenericRepository {
      * @param entity the entity to delete
      */
     @Transactional
-    public void delete(Object entity) {
+    public void delete(BaseEntity entity) {
         entityManager.remove(entity);
     }
 
@@ -97,39 +97,33 @@ public class GenericRepository {
      * @param id the ID to search for
      * @return the entity if found, null otherwise
      */
-    public Object findById(Class<?> entityClass, Long id) {
+    public <T extends BaseEntity> T findById(Class<T> entityClass, Long id) {
         return entityManager.find(entityClass, id);
     }
 
     /**
-     * Persists an entity if it doesn't already exist by UUID.
-     * If the entity has a UUID and an entity with that UUID exists, returns the existing entity.
-     * Otherwise, persists the entity and returns it.
+     * Ensures an entity exists by UUID. If an entity with the given UUID exists, returns it.
+     * If it doesn't exist, creates it and returns it.
      *
-     * @param entity the entity to persist
-     * @return the persisted entity (either existing or newly persisted)
+     * @param entity the entity to ensure exists
+     * @return the existing entity if found by UUID, or the newly created entity
      */
     @Transactional
-    public Object saveIfNotExistsByUuid(Object entity) {
+    @SuppressWarnings("unchecked")
+    public <T extends BaseEntity> T ensureByUuid(T entity) {
         if (entity == null) {
             return null;
         }
 
-        if (!(entity instanceof BaseEntity)) {
-            // If not a BaseEntity, just persist it
-            return save(entity);
-        }
-
-        BaseEntity baseEntity = (BaseEntity) entity;
-        if (baseEntity.getUuid() != null) {
+        if (entity.getUuid() != null) {
             // Check if entity with this UUID already exists
-            Optional<?> existing = findByUuid(entity.getClass(), baseEntity.getUuid());
+            Optional<T> existing = findByUuid((Class<T>) entity.getClass(), entity.getUuid());
             if (existing.isPresent()) {
                 return existing.get();
             }
         }
 
-        // Entity doesn't exist or has no UUID, persist it
+        // Entity doesn't exist or has no UUID, create it
         return save(entity);
     }
 }

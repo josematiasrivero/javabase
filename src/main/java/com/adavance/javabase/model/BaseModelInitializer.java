@@ -14,9 +14,9 @@ import java.util.Set;
 @ObjectStore
 public class BaseModelInitializer extends ModelInitializer {
 
-    public static Role ADMIN_ROLE = new Role("admin", List.of("User.*"));
+    public static Role ADMIN_ROLE = new Role("admin", "admin", List.of("User.*"));
 
-    public static User ADMIN_USER = new User("admin", "admin", List.of(ADMIN_ROLE));
+    public static User ADMIN_USER = new User("admin", "admin", "password", List.of(ADMIN_ROLE));
 
     public BaseModelInitializer(GenericRepository genericRepository) {
         super(genericRepository);

@@ -12,13 +12,14 @@ import java.util.List;
 @Table(name = "roles")
 @Getter
 @Setter
-@Accessors(chain = true, fluent = true)
+@Accessors(chain = true)
 public class Role extends BaseEntity {
 
     protected Role() {
     }
 
-    public Role(String name, List<String> permissions) {
+    public Role(String uuid, String name, List<String> permissions) {
+        this.uuid = uuid;
         this.name = name;
         this.permissions = permissions;
     }
