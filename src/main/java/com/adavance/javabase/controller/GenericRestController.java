@@ -1,5 +1,6 @@
 package com.adavance.javabase.controller;
 
+import com.adavance.javabase.repository.GenericRepository;
 import com.adavance.javabase.util.EntityDiscovery;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.persistence.*;
@@ -35,7 +36,7 @@ import java.util.Optional;
 public class GenericRestController {
 
     private final EntityDiscovery entityDiscovery;
-    private final EntityManager entityManager;
+    private final GenericRepository genericRepository;
 
     /**
      * GET /rest/{entityName}
@@ -53,9 +54,7 @@ public class GenericRestController {
 
         try {
             Class<?> entityClass = entityClassOpt.get();
-            String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e";
-            TypedQuery<?> query = entityManager.createQuery(jpql, entityClass);
-            List<?> results = query.getResultList();
+            List<?> results = genericRepository.findAll(entityClass);
 
             return ResponseEntity.ok(results);
         } catch (Exception e) {
@@ -81,7 +80,7 @@ public class GenericRestController {
 
         try {
             Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
+            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -123,8 +122,7 @@ public class GenericRestController {
             setEntityFields(entity, requestBody, entityClass);
 
             // Persist the entity
-            entityManager.persist(entity);
-            entityManager.flush();
+            genericRepository.save(entity);
 
             log.info("Successfully created entity {}: {}", entityName, entity);
             return ResponseEntity.status(HttpStatus.CREATED).body(entity);
@@ -166,7 +164,7 @@ public class GenericRestController {
 
         try {
             Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
+            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -179,8 +177,7 @@ public class GenericRestController {
             setEntityFields(entity, requestBody, entityClass);
 
             // Merge the entity
-            entityManager.merge(entity);
-            entityManager.flush();
+            genericRepository.update(entity);
 
             log.info("Successfully updated entity {}: {}", entityName, entity);
             return ResponseEntity.ok(entity);
@@ -216,7 +213,7 @@ public class GenericRestController {
 
         try {
             Class<?> entityClass = entityClassOpt.get();
-            Optional<?> entityOpt = findEntityByUuid(entityClass, uuid);
+            Optional<?> entityOpt = genericRepository.findByUuid(entityClass, uuid);
 
             if (entityOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -224,7 +221,7 @@ public class GenericRestController {
             }
 
             Object entity = entityOpt.get();
-            entityManager.remove(entity);
+            genericRepository.delete(entity);
 
             log.info("Successfully deleted entity {}: {}", entityName, uuid);
             return ResponseEntity.noContent().build();
@@ -236,19 +233,6 @@ public class GenericRestController {
         }
     }
 
-    /**
-     * Helper to find an entity by UUID using JPQL.
-     */
-    private Optional<?> findEntityByUuid(Class<?> entityClass, String uuid) {
-        try {
-            String jpql = "SELECT e FROM " + entityClass.getSimpleName() + " e WHERE e.uuid = :uuid";
-            TypedQuery<?> query = entityManager.createQuery(jpql, entityClass);
-            query.setParameter("uuid", uuid);
-            return Optional.of(query.getSingleResult());
-        } catch (NoResultException e) {
-            return Optional.empty();
-        }
-    }
 
     /**
      * Sets entity fields from a Map using reflection.
@@ -293,7 +277,7 @@ public class GenericRestController {
                         if (idValue != null) {
                             if (idValue instanceof String) {
                                 // Assume UUID
-                                Optional<?> relatedEntity = findEntityByUuid(fieldType, (String) idValue);
+                                Optional<?> relatedEntity = genericRepository.findByUuid(fieldType, (String) idValue);
                                 if (relatedEntity.isPresent()) {
                                     value = relatedEntity.get();
                                 } else {
@@ -302,7 +286,7 @@ public class GenericRestController {
                                 }
                             } else {
                                 // Fallback to ID (Long) if passed as number
-                                value = entityManager.find(fieldType, convertToLong(idValue));
+                                value = genericRepository.findById(fieldType, convertToLong(idValue));
                             }
                         }
                     }
@@ -335,7 +319,7 @@ public class GenericRestController {
                             Object relatedEntity;
                             if (itemMap.containsKey("uuid")) {
                                 String uuid = (String) itemMap.get("uuid");
-                                Optional<?> existing = findEntityByUuid(relatedClass, uuid);
+                                Optional<?> existing = genericRepository.findByUuid(relatedClass, uuid);
                                 if (existing.isPresent()) {
                                     relatedEntity = existing.get();
                                     // Update existing entity fields if needed?
@@ -354,7 +338,7 @@ public class GenericRestController {
                             relatedEntities.add(relatedEntity);
                         } else if (item instanceof String) {
                             // Assume UUID
-                            Optional<?> existing = findEntityByUuid(relatedClass, (String) item);
+                            Optional<?> existing = genericRepository.findByUuid(relatedClass, (String) item);
                             if (existing.isPresent()) {
                                 relatedEntities.add(existing.get());
                             } else {
@@ -374,7 +358,7 @@ public class GenericRestController {
                     Map<String, Object> relationMap = (Map<String, Object>) value;
                     if (relationMap.containsKey("uuid")) {
                         String relatedUuid = (String) relationMap.get("uuid");
-                        Optional<?> relatedEntity = findEntityByUuid(fieldType, relatedUuid);
+                        Optional<?> relatedEntity = genericRepository.findByUuid(fieldType, relatedUuid);
                         if (relatedEntity.isPresent()) {
                             value = relatedEntity.get();
                         } else {
@@ -383,7 +367,7 @@ public class GenericRestController {
                         }
                     } else if (relationMap.containsKey("id")) {
                         Object idValue = relationMap.get("id");
-                        value = entityManager.find(fieldType, convertToLong(idValue));
+                        value = genericRepository.findById(fieldType, convertToLong(idValue));
                     }
                 }
 

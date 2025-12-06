@@ -42,7 +42,8 @@ public class BaseEntity {
         }
     }
 
-    protected void beforeOnCreate() {};
+    protected void beforeOnCreate() {
+    };
 
     @PreUpdate
     protected void onUpdate() {
@@ -50,5 +51,7 @@ public class BaseEntity {
         updatedAt = Instant.now();
     }
 
-    protected void beforeOnUpdate() {};
+    protected void beforeOnUpdate() {
+    };
+
 }

@@ -3,6 +3,7 @@ package com.adavance.javabase.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,13 +12,14 @@ import java.util.List;
 @Table(name = "roles")
 @Getter
 @Setter
+@Accessors(chain = true, fluent = true)
 public class Role extends BaseEntity {
 
     protected Role() {
     }
 
-    public Role(String uuid, List<String> permissions) {
-        this.uuid = uuid;
+    public Role(String name, List<String> permissions) {
+        this.name = name;
         this.permissions = permissions;
     }
 
@@ -28,6 +30,5 @@ public class Role extends BaseEntity {
     @CollectionTable(name = "role_permissions", joinColumns = @JoinColumn(name = "role_id"))
     @Column(name = "permission")
     private List<String> permissions = new ArrayList<>();
-
 
 }
