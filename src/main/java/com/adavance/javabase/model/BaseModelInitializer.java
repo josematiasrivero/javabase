@@ -14,9 +14,9 @@ import java.util.Set;
 @ObjectStore
 public class BaseModelInitializer extends ModelInitializer {
 
-    public static Role ADMIN_ROLE = new Role("admin", "admin", List.of("User.*"));
+    public static Role ADMIN_ROLE;
 
-    public static User ADMIN_USER = new User("admin", "admin", "password", List.of(ADMIN_ROLE));
+    public static User ADMIN_USER;
 
     public BaseModelInitializer(GenericRepository genericRepository) {
         super(genericRepository);
@@ -24,6 +24,7 @@ public class BaseModelInitializer extends ModelInitializer {
     
     @PostConstruct
     public void init() {
-        ensurePersisted(Set.of("ADMIN_ROLE", "ADMIN_USER"));
+        ADMIN_ROLE = ensureByUuid(new Role("admin", "admin", List.of("User.*")));
+        ADMIN_USER = ensureByUuid(new User("admin", "admin", "password", List.of(ADMIN_ROLE)));
     }
 }
