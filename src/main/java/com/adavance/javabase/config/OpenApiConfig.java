@@ -77,7 +77,7 @@ public class OpenApiConfig {
 
     /**
      * Generates OpenAPI paths for all discovered entities.
-     * Creates GET (list), GET (by ID), and POST operations for each entity.
+     * Creates GET (list), GET (by UUID), POST, PUT, and DELETE operations for each entity.
      */
     private void generateEntityPaths(OpenAPI openAPI) {
         for (Class<?> entityClass : entityDiscovery.getAllEntityClasses()) {
@@ -105,26 +105,6 @@ public class OpenApiConfig {
                             .addApiResponse("500", new ApiResponse().description("Internal server error")));
             pathItem.setGet(listOperation);
 
-            // GET /rest/{entityName}/{id} - Get entity by ID (separate path)
-            Operation getByIdOperation = new Operation()
-                    .summary("Get " + entityName + " by ID")
-                    .description("Retrieves a specific " + entityName + " entity by its ID")
-                    .operationId("get" + schemaName + "ById")
-                    .addParametersItem(new Parameter()
-                            .name("id")
-                            .in("path")
-                            .required(true)
-                            .description("Entity ID")
-                            .schema(new Schema<>().type("integer").format("int64")))
-                    .responses(new ApiResponses()
-                            .addApiResponse("200", new ApiResponse()
-                                    .description("Successful response")
-                                    .content(new Content()
-                                            .addMediaType("application/json", new MediaType()
-                                                    .schema(new Schema<>().$ref("#/components/schemas/" + schemaName)))))
-                            .addApiResponse("404", new ApiResponse().description("Entity not found"))
-                            .addApiResponse("500", new ApiResponse().description("Internal server error")));
-
             // POST /rest/{entityName} - Create new entity
             Operation createOperation = new Operation()
                     .summary("Create a new " + entityName + " entity")
@@ -150,11 +130,77 @@ public class OpenApiConfig {
             // Add the path with GET (list) and POST operations
             openAPI.path(path, pathItem);
 
-            // Add the GET by ID path separately
-            String pathWithId = path + "/{id}";
-            PathItem pathItemWithId = new PathItem();
-            pathItemWithId.setGet(getByIdOperation);
-            openAPI.path(pathWithId, pathItemWithId);
+            // Path for operations with UUID: GET, PUT, DELETE
+            String pathWithUuid = path + "/{uuid}";
+            PathItem pathItemWithUuid = new PathItem();
+
+            // GET /rest/{entityName}/{uuid} - Get entity by UUID
+            Operation getByUuidOperation = new Operation()
+                    .summary("Get " + entityName + " by ID")
+                    .description("Retrieves a specific " + entityName + " entity by its UUID")
+                    .operationId("get" + schemaName + "ByUuid")
+                    .addParametersItem(new Parameter()
+                            .name("uuid")
+                            .in("path")
+                            .required(true)
+                            .description("Entity UUID")
+                            .schema(new Schema<>().type("string").format("uuid")))
+                    .responses(new ApiResponses()
+                            .addApiResponse("200", new ApiResponse()
+                                    .description("Successful response")
+                                    .content(new Content()
+                                            .addMediaType("application/json", new MediaType()
+                                                    .schema(new Schema<>().$ref("#/components/schemas/" + schemaName)))))
+                            .addApiResponse("404", new ApiResponse().description("Entity not found"))
+                            .addApiResponse("500", new ApiResponse().description("Internal server error")));
+            pathItemWithUuid.setGet(getByUuidOperation);
+
+            // PUT /rest/{entityName}/{uuid} - Update entity
+            Operation updateOperation = new Operation()
+                    .summary("Update " + entityName + " entity")
+                    .description("Updates an existing " + entityName + " entity with the provided data")
+                    .operationId("update" + schemaName + "Entity")
+                    .addParametersItem(new Parameter()
+                            .name("uuid")
+                            .in("path")
+                            .required(true)
+                            .description("Entity UUID")
+                            .schema(new Schema<>().type("string").format("uuid")))
+                    .requestBody(new RequestBody()
+                            .description(entityName + " entity data to update")
+                            .required(true)
+                            .content(new Content()
+                                    .addMediaType("application/json", new MediaType()
+                                            .schema(new Schema<>().$ref("#/components/schemas/" + schemaName)))))
+                    .responses(new ApiResponses()
+                            .addApiResponse("200", new ApiResponse()
+                                    .description("Entity updated successfully")
+                                    .content(new Content()
+                                            .addMediaType("application/json", new MediaType()
+                                                    .schema(new Schema<>().$ref("#/components/schemas/" + schemaName)))))
+                            .addApiResponse("400", new ApiResponse().description("Bad request"))
+                            .addApiResponse("404", new ApiResponse().description("Entity not found"))
+                            .addApiResponse("500", new ApiResponse().description("Internal server error")));
+            pathItemWithUuid.setPut(updateOperation);
+
+            // DELETE /rest/{entityName}/{uuid} - Delete entity
+            Operation deleteOperation = new Operation()
+                    .summary("Delete " + entityName + " entity")
+                    .description("Deletes a specific " + entityName + " entity by its UUID")
+                    .operationId("delete" + schemaName + "Entity")
+                    .addParametersItem(new Parameter()
+                            .name("uuid")
+                            .in("path")
+                            .required(true)
+                            .description("Entity UUID")
+                            .schema(new Schema<>().type("string").format("uuid")))
+                    .responses(new ApiResponses()
+                            .addApiResponse("204", new ApiResponse().description("Entity deleted successfully"))
+                            .addApiResponse("404", new ApiResponse().description("Entity not found"))
+                            .addApiResponse("500", new ApiResponse().description("Internal server error")));
+            pathItemWithUuid.setDelete(deleteOperation);
+
+            openAPI.path(pathWithUuid, pathItemWithUuid);
         }
     }
 
