@@ -22,12 +22,15 @@ import java.util.Optional;
 /**
  * Generic REST controller that handles all entity requests under /rest/*
  * 
- * Automatically discovers all @Entity classes and provides CRUD operations:
+ * Automatically discovers all @Entity classes annotated with @AutoController
+ * and provides CRUD operations:
  * - GET /rest/{entity-name} - List all entities
  * - GET /rest/{entity-name}/{uuid} - Get entity by UUID
  * - POST /rest/{entity-name} - Create new entity
  * - PUT /rest/{entity-name}/{uuid} - Update entity
  * - DELETE /rest/{entity-name}/{uuid} - Delete entity
+ * 
+ * Only entities annotated with @AutoController will be accessible through this controller.
  */
 @Hidden
 @RestController

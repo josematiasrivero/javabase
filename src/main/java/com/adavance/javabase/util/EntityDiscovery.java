@@ -1,5 +1,6 @@
 package com.adavance.javabase.util;
 
+import com.adavance.javabase.annotations.AutoController;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManagerFactory;
@@ -15,7 +16,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Utility class to discover all @Entity classes in the application.
+ * Utility class to discover all @Entity classes in the application
+ * that are annotated with @AutoController.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,7 +34,9 @@ public class EntityDiscovery {
         
         for (EntityType<?> entityType : metamodel.getEntities()) {
             Class<?> entityClass = entityType.getJavaType();
-            if (entityClass.isAnnotationPresent(Entity.class)) {
+            // Only discover entities that have both @Entity and @AutoController annotations
+            if (entityClass.isAnnotationPresent(Entity.class) && 
+                entityClass.isAnnotationPresent(AutoController.class)) {
                 String entityName = toEntityName(entityClass.getSimpleName());
                 entityNameToClass.put(entityName, entityClass);
                 classToEntityName.put(entityClass, entityName);

@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Configuration for OpenAPI/Swagger documentation.
- * Automatically generates schemas for all @Entity classes.
+ * Automatically generates schemas for all @Entity classes annotated with @AutoController.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class OpenApiConfig {
                         .title("Javabase API")
                         .version("1.0.0")
                         .description("API documentation for Javabase application. " +
-                                "This API automatically discovers and documents all entity models."))
+                                "This API automatically discovers and documents all entity models annotated with @AutoController."))
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("Local development server")
                 ));
